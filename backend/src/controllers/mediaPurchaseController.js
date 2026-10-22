@@ -2,6 +2,7 @@ const MediaPurchase = require('../models/MediaPurchase');
 const Campaign = require('../models/Campaign');
 const Publisher = require('../models/Publisher');
 const Agency = require('../models/Agency');
+const { recordTransaction } = require('../blockchainService');
 
 // Create media purchase
 const createPurchase = async (req, res) => {
@@ -134,6 +135,24 @@ const updatePurchaseStatus = async (req, res) => {
   purchase.status = status;
   purchase.approvedBy = req.user._id;
   await purchase.save();
+
+  // Record approved purchase on blockchain
+  if (status === 'approved') {
+    recordTransaction({
+      recordType: 'PURCHASE',
+      recordId: purchase._id.toString(),
+      data: {
+        campaign: purchase.campaign.toString(),
+        publisher: purchase.publisher.toString(),
+        totalCost: purchase.totalCost,
+        quantity: purchase.quantity,
+        status: 'approved',
+      },
+      userId: req.user._id,
+    }).then((tx) => {
+      if (tx?.txHash) MediaPurchase.findByIdAndUpdate(purchase._id, { blockchainTxHash: tx.txHash }).exec();
+    }).catch(() => {});
+  }
 
   res.json(purchase);
 };

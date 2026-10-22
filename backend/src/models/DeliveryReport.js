@@ -20,7 +20,9 @@ const deliveryReportSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'disputed'],
     default: 'pending',
   },
-  reportHash: { type: String },         // SHA-256 hash (Feature 8)
+  reportHash: { type: String },
+  isFlagged: { type: Boolean, default: false },
+  flagReason: { type: String },
   blockchainTxHash: { type: String },   // on-chain record (Feature 6)
   notes: { type: String },
 }, { timestamps: true });

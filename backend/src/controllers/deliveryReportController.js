@@ -2,6 +2,13 @@ const DeliveryReport = require('../models/DeliveryReport');
 const MediaPurchase = require('../models/MediaPurchase');
 const Campaign = require('../models/Campaign');
 const Publisher = require('../models/Publisher');
+const { recordTransaction } = require('../blockchainService');
+const crypto = require('crypto');
+
+const computeReportHash = (data) => {
+  const str = JSON.stringify(data, Object.keys(data).sort());
+  return crypto.createHash('sha256').update(str).digest('hex');
+};
 
 // Submit delivery report
 const createReport = async (req, res) => {
@@ -27,6 +34,25 @@ const createReport = async (req, res) => {
   const ctr = imp > 0 ? parseFloat(((clk / imp) * 100).toFixed(4)) : 0;
   const cpm = imp > 0 ? parseFloat(((spd / imp) * 1000).toFixed(4)) : 0;
 
+  const hashData = {
+    mediaPurchaseId,
+    impressions: imp,
+    clicks: clk,
+    spend: spd,
+    startDate: reportingPeriod.startDate,
+    endDate: reportingPeriod.endDate,
+  };
+  const reportHash = computeReportHash(hashData);
+
+  // Duplicate detection — same hash already exists
+  const duplicate = await DeliveryReport.findOne({ reportHash });
+  let isFlagged = false;
+  let flagReason = '';
+  if (duplicate) {
+    isFlagged = true;
+    flagReason = `Duplicate report detected (matches report ${duplicate._id})`;
+  }
+
   const report = await DeliveryReport.create({
     campaign: purchase.campaign._id,
     publisher: purchase.publisher,
@@ -39,6 +65,9 @@ const createReport = async (req, res) => {
     ctr,
     cpm,
     notes,
+    reportHash,
+    isFlagged,
+    flagReason: flagReason || undefined,
   });
 
   res.status(201).json(report);
@@ -104,6 +133,25 @@ const updateReportStatus = async (req, res) => {
   report.approvedBy = req.user._id;
   await report.save();
 
+  // Record approved report on blockchain
+  if (status === 'approved') {
+    recordTransaction({
+      recordType: 'REPORT',
+      recordId: report._id.toString(),
+      data: {
+        campaign: report.campaign._id.toString(),
+        publisher: report.publisher.toString(),
+        impressions: report.impressions,
+        clicks: report.clicks,
+        spend: report.spend,
+        status: 'approved',
+      },
+      userId: req.user._id,
+    }).then((tx) => {
+      if (tx?.txHash) DeliveryReport.findByIdAndUpdate(report._id, { blockchainTxHash: tx.txHash }).exec();
+    }).catch(() => {});
+  }
+
   res.json(report);
 };
 
@@ -143,4 +191,51 @@ const getPublisherComparison = async (req, res) => {
   res.json(comparison);
 };
 
-module.exports = { createReport, getReports, getReport, updateReportStatus, getPublisherComparison };
+// Verify report integrity — recompute hash and compare against stored
+const verifyReport = async (req, res) => {
+  const { mediaPurchaseId, impressions, clicks, spend, startDate, endDate } = req.body;
+  if (!mediaPurchaseId || !startDate || !endDate)
+    return res.status(400).json({ message: 'mediaPurchaseId, startDate, endDate are required' });
+
+  const report = await DeliveryReport.findOne({ mediaPurchase: mediaPurchaseId });
+  if (!report) return res.status(404).json({ message: 'Report not found' });
+
+  const computedHash = computeReportHash({
+    mediaPurchaseId,
+    impressions: impressions || 0,
+    clicks: clicks || 0,
+    spend: spend || 0,
+    startDate,
+    endDate,
+  });
+
+  const isValid = computedHash === report.reportHash;
+  if (!isValid && !report.isFlagged) {
+    report.isFlagged = true;
+    report.flagReason = 'Hash mismatch detected during verification';
+    await report.save();
+  }
+
+  res.json({ isValid, computedHash, storedHash: report.reportHash, isFlagged: report.isFlagged });
+};
+
+// Get all flagged reports (admin, advertiser)
+const getFlaggedReports = async (req, res) => {
+  let filter = { isFlagged: true };
+
+  if (req.user.role === 'advertiser') {
+    const campaigns = await Campaign.find({ advertiser: req.user._id }).select('_id');
+    filter.campaign = { $in: campaigns.map((c) => c._id) };
+  }
+
+  const reports = await DeliveryReport.find(filter)
+    .populate('campaign', 'title')
+    .populate('publisher', 'companyName')
+    .populate('submittedBy', 'name email')
+    .sort({ createdAt: -1 });
+
+  res.json(reports);
+};
+
+module.exports = { createReport, getReports, getReport, updateReportStatus, getPublisherComparison, verifyReport, getFlaggedReports };
+

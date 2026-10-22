@@ -1,4 +1,5 @@
 const Campaign = require('../models/Campaign');
+const { recordTransaction } = require('../blockchainService');
 
 // Create campaign
 const createCampaign = async (req, res) => {
@@ -17,6 +18,16 @@ const createCampaign = async (req, res) => {
     publishers: publishers || [],
     advertiser: req.user._id,
   });
+
+  // Record on blockchain
+  recordTransaction({
+    recordType: 'CAMPAIGN',
+    recordId: campaign._id.toString(),
+    data: { title, budget, objective, startDate, endDate, advertiser: req.user._id.toString() },
+    userId: req.user._id,
+  }).then((tx) => {
+    if (tx?.txHash) Campaign.findByIdAndUpdate(campaign._id, { blockchainTxHash: tx.txHash }).exec();
+  }).catch(() => {});
 
   res.status(201).json(campaign);
 };
