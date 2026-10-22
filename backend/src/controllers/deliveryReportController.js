@@ -4,6 +4,7 @@ const Campaign = require('../models/Campaign');
 const Publisher = require('../models/Publisher');
 const { recordTransaction } = require('../blockchainService');
 const crypto = require('crypto');
+const auditLog = require('../middleware/auditLogger');
 
 const computeReportHash = (data) => {
   const str = JSON.stringify(data, Object.keys(data).sort());
@@ -70,6 +71,7 @@ const createReport = async (req, res) => {
     flagReason: flagReason || undefined,
   });
 
+  auditLog(req, 'CREATE', 'DeliveryReport', report._id, { mediaPurchaseId, isFlagged });
   res.status(201).json(report);
 };
 
@@ -132,6 +134,7 @@ const updateReportStatus = async (req, res) => {
   report.status = status;
   report.approvedBy = req.user._id;
   await report.save();
+  auditLog(req, status.toUpperCase(), 'DeliveryReport', report._id, { status });
 
   // Record approved report on blockchain
   if (status === 'approved') {

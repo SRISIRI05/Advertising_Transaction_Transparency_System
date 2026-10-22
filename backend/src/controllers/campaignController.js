@@ -1,5 +1,6 @@
 const Campaign = require('../models/Campaign');
 const { recordTransaction } = require('../blockchainService');
+const auditLog = require('../middleware/auditLogger');
 
 // Create campaign
 const createCampaign = async (req, res) => {
@@ -29,6 +30,7 @@ const createCampaign = async (req, res) => {
     if (tx?.txHash) Campaign.findByIdAndUpdate(campaign._id, { blockchainTxHash: tx.txHash }).exec();
   }).catch(() => {});
 
+  auditLog(req, 'CREATE', 'Campaign', campaign._id, { title: campaign.title, budget: campaign.budget });
   res.status(201).json(campaign);
 };
 
@@ -80,6 +82,7 @@ const updateCampaign = async (req, res) => {
     return res.status(400).json({ message: 'Budget cannot be less than amount already spent' });
 
   await campaign.save();
+  auditLog(req, 'UPDATE', 'Campaign', campaign._id, { status: campaign.status });
   res.json(campaign);
 };
 
@@ -96,6 +99,7 @@ const deleteCampaign = async (req, res) => {
     return res.status(400).json({ message: 'Only draft campaigns can be deleted' });
 
   await campaign.deleteOne();
+  auditLog(req, 'DELETE', 'Campaign', req.params.id);
   res.json({ message: 'Campaign deleted' });
 };
 

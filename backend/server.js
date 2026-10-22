@@ -17,6 +17,7 @@ app.use('/api/purchases', require('./src/routes/mediaPurchases'));
 app.use('/api/reports', require('./src/routes/deliveryReports'));
 app.use('/api/blockchain', require('./src/routes/blockchain'));
 app.use('/api/payments', require('./src/routes/payments'));
+app.use('/api/analytics', require('./src/routes/analytics'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

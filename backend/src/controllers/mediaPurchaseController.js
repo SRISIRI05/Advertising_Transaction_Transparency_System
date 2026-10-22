@@ -4,6 +4,7 @@ const Publisher = require('../models/Publisher');
 const Agency = require('../models/Agency');
 const Payment = require('../models/Payment');
 const { recordTransaction } = require('../blockchainService');
+const auditLog = require('../middleware/auditLogger');
 
 // Create media purchase
 const createPurchase = async (req, res) => {
@@ -73,6 +74,7 @@ const createPurchase = async (req, res) => {
   campaign.spent += totalCost;
   await campaign.save();
 
+  auditLog(req, 'CREATE', 'MediaPurchase', purchase._id, { campaign: campaignId, totalCost });
   res.status(201).json(purchase);
 };
 
@@ -136,6 +138,7 @@ const updatePurchaseStatus = async (req, res) => {
   purchase.status = status;
   purchase.approvedBy = req.user._id;
   await purchase.save();
+  auditLog(req, status.toUpperCase(), 'MediaPurchase', purchase._id, { status });
 
   // Create payment record on approval
   if (status === 'approved') {
@@ -202,6 +205,7 @@ const cancelPurchase = async (req, res) => {
 
   purchase.status = 'cancelled';
   await purchase.save();
+  auditLog(req, 'CANCEL', 'MediaPurchase', purchase._id);
   res.json(purchase);
 };
 
