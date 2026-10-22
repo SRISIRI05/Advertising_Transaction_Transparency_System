@@ -131,3 +131,29 @@ npm run dev
 | GET | `/api/reports/:id` | Authenticated |
 | PATCH | `/api/reports/:id/status` | Advertiser, Admin |
 | GET | `/api/reports/compare/:campaignId` | Advertiser, Admin |
+
+---
+
+### ✅ Feature 6 — Blockchain Transaction Ledger
+- Stores SHA-256 hash of each record on-chain via ATTSLedger smart contract
+- Tracks campaign creation, media purchases, report approvals, and payment status
+- Falls back to MongoDB if Ganache is not running
+- Displays tx hash, block number, contract address
+- Verify endpoint checks if a record has been tampered with
+
+#### API Endpoints
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| GET | `/api/blockchain` | Admin, Advertiser |
+| GET | `/api/blockchain/:id` | Authenticated |
+| GET | `/api/blockchain/record/:recordId` | Authenticated |
+| POST | `/api/blockchain/verify` | Authenticated |
+
+#### Blockchain Setup
+```bash
+# 1. Open Ganache (port 7545)
+# 2. Add private key to backend/.env GANACHE_PRIVATE_KEY
+# 3. Deploy contract
+cd blockchain
+npm run deploy
+```
