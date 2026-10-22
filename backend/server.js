@@ -12,6 +12,8 @@ app.use('/api/users', require('./src/routes/users'));
 app.use('/api/campaigns', require('./src/routes/campaigns'));
 app.use('/api/agencies', require('./src/routes/agencies'));
 app.use('/api/publishers', require('./src/routes/publishers'));
+app.use('/api/purchases', require('./src/routes/mediaPurchases'));
+app.use('/api/reports', require('./src/routes/deliveryReports'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

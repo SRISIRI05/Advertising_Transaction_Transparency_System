@@ -93,3 +93,41 @@ npm run dev
 | POST | `/api/publishers/:id/placements` | Owner, Admin |
 | DELETE | `/api/publishers/:id/placements/:placementId` | Owner, Admin |
 | PATCH | `/api/publishers/:id/verify` | Admin |
+
+---
+
+### ✅ Feature 4 — Media Purchase Recording & Budget Validation
+- Advertisers/admins record ad placements purchased from publishers
+- Validates placement availability and active status
+- Auto-calculates agency fee based on commission rate
+- Prevents purchases exceeding remaining campaign budget
+- Updates campaign `spent` and publisher inventory on purchase
+- Restores `spent` and inventory if purchase is rejected or cancelled
+- Admin approves or rejects pending purchases
+
+#### API Endpoints
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| POST | `/api/purchases` | Advertiser, Admin |
+| GET | `/api/purchases` | Advertiser (own), Publisher (own), Admin (all) |
+| GET | `/api/purchases/:id` | Authenticated |
+| PATCH | `/api/purchases/:id/status` | Admin |
+| PATCH | `/api/purchases/:id/cancel` | Owner, Admin |
+
+---
+
+### ✅ Feature 5 — Advertising Delivery Reports
+- Publishers submit delivery reports for approved media purchases
+- Records impressions, clicks, spend per reporting period
+- Auto-calculates CTR (clicks/impressions × 100) and CPM (spend/impressions × 1000)
+- Advertiser or admin can approve or dispute reports
+- Advertiser can compare publisher performance across a campaign
+
+#### API Endpoints
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| POST | `/api/reports` | Publisher, Admin |
+| GET | `/api/reports` | Advertiser (own), Publisher (own), Admin (all) |
+| GET | `/api/reports/:id` | Authenticated |
+| PATCH | `/api/reports/:id/status` | Advertiser, Admin |
+| GET | `/api/reports/compare/:campaignId` | Advertiser, Admin |
