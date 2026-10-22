@@ -2,6 +2,7 @@ const MediaPurchase = require('../models/MediaPurchase');
 const Campaign = require('../models/Campaign');
 const Publisher = require('../models/Publisher');
 const Agency = require('../models/Agency');
+const Payment = require('../models/Payment');
 const { recordTransaction } = require('../blockchainService');
 
 // Create media purchase
@@ -135,6 +136,25 @@ const updatePurchaseStatus = async (req, res) => {
   purchase.status = status;
   purchase.approvedBy = req.user._id;
   await purchase.save();
+
+  // Create payment record on approval
+  if (status === 'approved') {
+    const fullCampaign = await Campaign.findById(purchase.campaign);
+    let agencyDoc = null;
+    if (fullCampaign?.agencies?.length > 0)
+      agencyDoc = await Agency.findOne({ user: { $in: fullCampaign.agencies } });
+
+    await Payment.create({
+      mediaPurchase: purchase._id,
+      campaign: purchase.campaign,
+      publisher: purchase.publisher,
+      agency: agencyDoc?._id || undefined,
+      publisherAmount: purchase.totalCost - purchase.agencyFee,
+      agencyCommission: purchase.agencyFee,
+      totalAmount: purchase.totalCost,
+      agencyStatus: agencyDoc ? 'pending' : 'not_applicable',
+    });
+  }
 
   // Record approved purchase on blockchain
   if (status === 'approved') {
