@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { initBlockchain } = require('./src/blockchainService');
 
 const app = express();
 app.use(cors());
@@ -14,6 +15,7 @@ app.use('/api/agencies', require('./src/routes/agencies'));
 app.use('/api/publishers', require('./src/routes/publishers'));
 app.use('/api/purchases', require('./src/routes/mediaPurchases'));
 app.use('/api/reports', require('./src/routes/deliveryReports'));
+app.use('/api/blockchain', require('./src/routes/blockchain'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -23,6 +25,7 @@ app.use((err, req, res, next) => {
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB connected');
+    initBlockchain();
     app.listen(process.env.PORT, () =>
       console.log(`Server running on port ${process.env.PORT}`)
     );
